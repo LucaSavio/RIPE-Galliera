@@ -2,7 +2,6 @@ import json
 import joblib
 import numpy as np
 import pandas as pd
-from azureml.core.model import Model
 import re
 import uuid
 import datetime
@@ -119,11 +118,11 @@ def main(df_prestazioni,df_risultati_lab,df_master):
     for user in users:
         df_user = df_prestazioni[df_prestazioni.gdpr_id == user ].sort_values(by=['data_erogazione'])
         df_user_ricov = df_user[df_user.tipoprestazione == 'ricoverato']
-        df_user_ricov['data_erogazione'] = pd.to_datetime(df_user_ricov['data_erogazione'])
-        df_user_ricov['datediff'] = df_user_ricov.data_erogazione.diff().astype(str)
-        df_user_ricov['datediff'] = df_user_ricov['datediff'].apply(lambda x : x.split(' ')[0])
-        df_user_ricov['datediff'] = df_user_ricov['datediff'].replace('NaT','0')
-        df_user_ricov['datediff']  = pd.to_numeric(df_user_ricov['datediff'])
+        df_user_ricov.loc[:, 'data_erogazione'] = pd.to_datetime(df_user_ricov['data_erogazione'])
+        df_user_ricov.loc[:, 'datediff'] = df_user_ricov.data_erogazione.diff().astype(str)
+        df_user_ricov.loc[:, 'datediff'] = df_user_ricov['datediff'].apply(lambda x : x.split(' ')[0])
+        df_user_ricov.loc[:, 'datediff'] = df_user_ricov['datediff'].replace('NaT','0')
+        df_user_ricov.loc[:, 'datediff']  = pd.to_numeric(df_user_ricov['datediff'])
         #df_user_ricov['riammissione'] = df_user_ricov['datediff'].apply( lambda x : 10 <= int(x) < 30)
         df_prestazioni_all = df_prestazioni_all.append(df_user_ricov)#,ignore_index=True)
 
@@ -161,10 +160,10 @@ def main(df_prestazioni,df_risultati_lab,df_master):
                 ex_problem.append(0)
 
 
-    df_risultati_lab['ris_min'] = ex_min
-    df_risultati_lab['ris_ok'] = ex_ok
-    df_risultati_lab['ris_max'] = ex_max
-    df_risultati_lab['ris_problem'] = ex_problem
+    df_risultati_lab.loc[:, 'ris_min'] = ex_min
+    df_risultati_lab.loc[:, 'ris_ok'] = ex_ok
+    df_risultati_lab.loc[:, 'ris_max'] = ex_max
+    df_risultati_lab.loc[:, 'ris_problem'] = ex_problem
 
     ########################  CALCOLO RESONTO ESAME E AGGIUNGO ANAGRAFICA #####################################################################
 
@@ -196,14 +195,19 @@ def main(df_prestazioni,df_risultati_lab,df_master):
                 tail = float(0)
                 head = float(0)
                 trend = float(-99)
-
+            
+            ok_perc = round(df_risultati_lab.loc[(df_risultati_lab['gdpr_id'] == int(paziente)) & (df_risultati_lab['codice_esame']==str(cod_exam)), 'ris_ok'].sum()/tot, 2)
+            min_perc = round(df_risultati_lab.loc[(df_risultati_lab['gdpr_id'] == int(paziente)) & (df_risultati_lab['codice_esame']==str(cod_exam)), 'ris_min'].sum()/tot, 2)
+            max_perc = round(df_risultati_lab.loc[(df_risultati_lab['gdpr_id'] == int(paziente)) & (df_risultati_lab['codice_esame']==str(cod_exam)), 'ris_max'].sum()/tot, 2)
+            problem_perc = round(df_risultati_lab.loc[(df_risultati_lab['gdpr_id'] == int(paziente)) & (df_risultati_lab['codice_esame']==str(cod_exam)), 'ris_problem'].sum()/tot,2)
+            
             df_temp1 = pd.DataFrame({'gdpr_id':[paziente],
                                      cod_exam+'_tot':[tot],
-                                     cod_exam+'_ok':[df_risultati_lab[(df_risultati_lab['gdpr_id'] == int(paziente)) & (df_risultati_lab['codice_esame']==str(cod_exam))].ris_ok.sum()/tot],
-                                     cod_exam+'_low':[df_risultati_lab[(df_risultati_lab['gdpr_id'] == int(paziente)) & (df_risultati_lab['codice_esame']==str(cod_exam))].ris_min.sum()/tot],
-                                     cod_exam+'_hight':[df_risultati_lab[(df_risultati_lab['gdpr_id'] == int(paziente)) & (df_risultati_lab['codice_esame']==str(cod_exam))].ris_max.sum()/tot],
-                                     cod_exam+'_problem':[df_risultati_lab[(df_risultati_lab['gdpr_id'] == int(paziente)) & (df_risultati_lab['codice_esame']==str(cod_exam))].ris_problem.sum()/tot]
-            ,cod_exam+'_trend':[trend]
+                                     cod_exam+'_ok':[ok_perc],
+                                     cod_exam+'_low':[min_perc],
+                                     cod_exam+'_hight':[max_perc],
+                                     cod_exam+'_problem':[problem_perc],
+                                     cod_exam+'_trend':[trend]
             })
             if i != 0:
                 df_row = pd.merge(df_row, df_temp1, on='gdpr_id')
