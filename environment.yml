@@ -2,6 +2,3 @@ name: demo-environment
 dependencies:
   - pandas
   - numpy
-  - re
-  - uuid
-  - datetime
